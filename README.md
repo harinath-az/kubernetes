@@ -388,4 +388,246 @@ As you progress, you'll learn about advanced Kubernetes features such as deploym
 For a comprehensive list of `kubectl` commands, refer to the [Kubernetes Cheat Sheet](https://kubernetes.io/docs/reference/kubectl/cheatsheet/). This resource is invaluable for understanding and mastering Kubernetes commands.
 
 
+# Understanding Kubernetes Deployment
+## Kubernetes Deployment
+To understand Kubernetes deployment, it's important to have understanding about Kubernetes pods. Let’s explore the differences between a container, a pod, and a deployment, which is also a common interview question.
+
+### Containers
+Containers can be created using various container platforms like Docker. To run a container, you provide specifications through the command line, such as:
+
+- `docker run -it` or `-d` for detached mode
+- The name of the image
+- Port exposure using `-p`
+- Volume mapping using `-v`
+- Network settings using `--network`
+
+### Pods
+Kubernetes modifies this process by allowing you to create a YAML manifest that defines all these specifications instead of writing them in the command line. A pod YAML manifest includes details like the container image, port, volumes, and network settings. A pod can contain one or multiple containers, which can share networking and storage, making it suitable for applications that depend on other applications.
+
+### Deployments
+While a pod can deploy an application, it lacks capabilities like auto-healing and auto-scaling. Deployments in Kubernetes offer these features. A deployment manages pods and ensures they run efficiently. It can automatically heal and scale applications, ensuring high availability and performance.
+
+### Key Differences
+- **Container:** Runs individual applications using Docker commands.
+- **Pod:** Groups one or more containers, sharing the same network and storage, defined using a YAML manifest.
+- **Deployment:** Manages pods, providing auto-healing and auto-scaling capabilities, ensuring zero downtime and efficient resource management.
+
+## Why Use Deployments?
+Deployments are essential for maintaining the desired state of applications in Kubernetes. They allow you to:
+- Perform rolling updates and rollbacks
+- Scale applications seamlessly
+- Ensure high availability with minimal manual intervention
+
+# Kubernetes Deployment Resource
+
+## Introduction
+
+In Kubernetes, it is recommended not to create pods directly but to use a **deployment resource** instead. This resource is crucial for managing pods efficiently and ensuring high availability and load balancing.
+
+## How It Works
+
+A **deployment resource** first creates a **replica set**, which is a Kubernetes controller, and then rolls out the pods. This intermediate resource allows you to specify the number of pod replicas required. For instance, you might need to handle high loads by directing users to different pod replicas.You can configure your deployment YAML manifest to specify that 100 users should go to replica 1 of pod and another 100 to replica 2 of the pod, effectively distributing the load. In Kubernetes, everything is defined using YAML manifests. When you specify a replica count in the deployment YAML, the deployment will use a replica set to create the required number of pods. The replica set ensures that the specified number of pods is always running, implementing auto-healing and auto-scaling. If a user accidentally deletes a pod, the replica set will recreate it to maintain the desired number of replicas. Additionally, if you update the replica count in the YAML manifest, the replica set will adjust the number of pods accordingly.
+
+This zero-downtime deployment feature ensures that applications remain available and performant. In Kubernetes, controllers like the replica set maintain the desired state by ensuring that the actual state on the cluster matches the specifications in the YAML manifest. There are default controllers provided by Kubernetes, and custom controllers like ArgoCD can also be created. Understanding these concepts is crucial for managing Kubernetes deployments effectively.
+
+<img src="https://github.com/harinath-az/kubernetes/blob/main/images/deployment.png" width="650" height="300">
+
+## Auto-Healing and Auto-Scaling
+
+If a pod is accidentally deleted, the replica set recreates it to maintain the desired number of replicas. Updating the replica count in the YAML manifest adjusts the number of pods accordingly, ensuring zero-downtime deployment. The replica set, being a Kubernetes controller, maintains the desired state by ensuring the actual state on the cluster matches the YAML manifest specifications.
+
+## Controllers in Kubernetes
+
+Controllers in Kubernetes manage the state, ensuring the desired and actual states are consistent. There are default and custom controllers, like ArgoCD. The **replica set controller** ensures the desired number of pod replicas are always running, maintaining application availability and performance.
+
+# Interacting with Kubernetes using kubectl and implementation of Deployment
+
+## Basic Commands
+## Starting Minikube
+
+Once Minikube is installed, create a Kubernetes cluster using the command:
+
+```bash
+minikube start
+```
+
+On MacOS or Windows, Minikube creates a virtual machine to host a single-node Kubernetes cluster. This setup uses a virtualization platform like Hyperkit or VirtualBox. By default, Minikube may use Docker as the driver, but you can specify a different driver with the `--driver` flag, e.g., `--driver=hyperkit` or `--driver=virtualbox`.
+
+Once we have started the minikube, we can create the pod with the help of yaml manifest file by using `kubectl create -f [pod-name]`
+### Viewing Resources
+
+To view all the resources in your cluster, use:
+```sh
+kubectl get all
+```
+This command lists all resources, including pods, deployments, and services in the current namespace. To list resources across all namespaces, use:
+```sh
+kubectl get all -A
+```
+
+### Deleting Resources
+
+To delete a deployment, use:
+```sh
+kubectl delete deploy <deployment_name>
+```
+After deletion, you can verify by running:
+```sh
+kubectl get pods
+kubectl get deploy
+```
+
+## Creating and Managing Pods
+
+### Creating a Pod
+
+To create a pod, use a YAML manifest. For example, with `pod.yaml`:
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  containers:
+    - name: nginx
+      image: nginx:latest
+```
+Apply this manifest with:
+```sh
+kubectl apply -f pod.yaml
+```
+Verify the pod creation with:
+```sh
+kubectl get pods
+```
+
+### Viewing Pod Details
+
+To view detailed information about the pod:
+```sh
+kubectl get pods -o wide
+```
+For more details:
+```sh
+kubectl describe pod <pod_name>
+```
+
+### Accessing the Pod
+
+If you're using Minikube, you can SSH into the cluster:
+```sh
+minikube ssh
+```
+Then, use `curl` to access the application:
+```sh
+curl <pod_ip_address>
+```
+
+## Importance of Deployments
+
+### Why Use Deployments?
+
+Deployments manage your pods and ensure high availability. If a pod is accidentally deleted or fails, the deployment controller will automatically recreate it. This auto-healing feature ensures your application remains available.
+
+### Creating a Deployment
+
+Here's an example `deployment.yaml`:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+```
+Apply this deployment with:
+```sh
+kubectl apply -f deployment.yaml
+```
+
+### Managing Deployments
+
+To see the deployment and the created pods:
+```sh
+kubectl get deploy
+kubectl get pods
+```
+To view the replica set:
+```sh
+kubectl get rs
+```
+
+### Updating Deployments
+
+To scale the deployment, update the `replicas` field in the `deployment.yaml` and reapply:
+```sh
+kubectl apply -f deployment.yaml
+```
+Verify the changes:
+```sh
+kubectl get pods
+```
+
+### Auto-Healing Demonstration
+
+To see auto-healing in action, watch the pods while deleting one:
+```sh
+kubectl get pods -w
+```
+In another terminal, delete a pod:
+```sh
+kubectl delete pod <pod_name>
+```
+You will see the pod being terminated and a new one being created immediately.
+<img src="https://github.com/harinath-az/kubernetes/blob/main/images/watch.png" width="650" height="300">
+
+## Deleting the depoyment created
+To stop or delete a Kubernetes deployment that was created using `kubectl create -f deployment.yaml`, you can use the `kubectl delete` command. Here are the steps:
+
+1. **Identify the Deployment Name:**
+   Ensure you know the name of the deployment. If you are unsure, you can list all deployments in the namespace:
+   ```bash
+   kubectl get deployments
+   ```
+
+2. **Delete the Deployment:**
+   Use the `kubectl delete` command with the name of the deployment:
+   ```bash
+   kubectl delete deployment <deployment-name>
+   ```
+   Replace `<deployment-name>` with the actual name of your deployment.
+
+3. **Delete Using the YAML File:**
+   Alternatively, you can delete the deployment using the same YAML file you used to create it:
+   ```bash
+   kubectl delete -f deployment.yaml
+   ```
+### Verifying Deletion:
+
+After deleting the deployment, you can verify that it has been removed by listing the deployments again:
+```bash
+kubectl get deployments
+```
+
+This should show that the deployment is no longer present.
+
+## Interview Questions
+
+- **What is the difference between a container, pod, and deployment?**
+- **What is the difference between a deployment and a replica set?**
+
+
+
+
 
