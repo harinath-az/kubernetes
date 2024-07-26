@@ -622,12 +622,85 @@ kubectl get deployments
 
 This should show that the deployment is no longer present.
 
+
+# Kubernetes Services 
+
+In production scenarios, we don't deploy a pod directly; instead, we usually deploy a deployment. Deployments are crucial because they help manage the lifecycle of pods, ensuring that the desired number of replicas is maintained. **Then why do we need services?**
+
+### Scenario Without Services
+
+Assume Kubernetes didn't have the concept of services. A developer or DevOps engineer would deploy their pod as a deployment in Kubernetes. The deployment creates a replica set, which in turn creates pods. For example, if we need three replicas, the replica set creates three pods.Why do we need multiple replicas? If only one user is accessing an application, one pod suffices. However, if there are multiple concurrent users (e.g., many users accessing WhatsApp simultaneously), a single pod can get overwhelmed. Therefore, we create multiple replicas to handle the load, ensuring the application can handle concurrent requests.
+
+#### Problem Without Services
+
+Let's consider a scenario where one of the pods goes down. Kubernetes has an auto-healing capability, where the replica set recreates the pod. However, when the pod comes back up, its IP address changes. Previously, the pod might have had an IP like 172.16.3.4, but after coming back up, it might be 172.16.3.8. This change means that any team or application trying to access the pod using the old IP address will fail.In real-world applications, like Google, users never access the application using specific IP addresses. Instead, they use a domain name (e.g., google.com), and load balancing is handled behind the scenes.
+
+1. **Pods Going Down**: In Kubernetes, containers (pods) are ephemeral and may go down frequently. Kubernetes’ auto-healing feature ensures that when a pod goes down, a new one is created by the replica set. However, the new pod gets a different IP address.
+   
+2. **IP Address Change**: When the new pod comes up, it might have a different IP address than the previous one. For instance, if the original IP was `172.16.3.4`, the new IP might be `172.16.3.8`.
+
+3. **Communication Issues**: This IP change creates a communication problem. If other applications or users were accessing the old IP, they would lose connectivity. Sharing IP addresses with users or other teams becomes impractical as they keep changing.
+
+
+## Introduction to Services in Kubernetes
+
+To address the above issues, Kubernetes uses services. A service is an abstraction that defines a logical set of pods and a policy to access them. Services enable a stable endpoint for accessing a group of pods.In Kubernetes, instead of accessing pods directly using their IP addresses, we create a service. This service acts as a **load balancer.** For example, if the service name is payment, users access the application via payment.default.svc.The service forwards incoming requests to the appropriate pods, distributing the load among them. This way, even if a pod's IP address changes, the service ensures that the application remains accessible.
+
+#### Key Advantages of Kubernetes Services
+1. **Load Balancing**: Distributes incoming traffic across multiple pods.
+2. **Service Discovery**: Allows internal services to find each other via DNS.
+3. **External Exposure**: Exposes applications to the external world, enabling access from outside the Kubernetes cluster.
+
+**Service Discovery**
+
+You might wonder, if a pod's IP address changes, won't the service also face the same issue? This is where Kubernetes' **service discovery** mechanism comes in. Instead of keeping track of IP addresses, the service uses **labels and selectors**. Each pod is assigned a label (e.g., `app=payment`). The service keeps track of pods using these labels. So, even if a pod's IP address changes, as long as the label remains the same, the service can route traffic to the correct pod.
+
+**Labels and Selectors**
+
+When creating a deployment, you specify a label in the metadata. For example:
+
+```yaml
+metadata:
+  labels:
+    app: payment
+```
+
+This label is applied to all pods created by the deployment. If a pod goes down and comes back up with a new IP address, the label remains the same. The service uses this label to discover and route traffic to the correct pods.
+
+### Features of Services
+
+- **Load Balancing**: Services provide load balancing across the pods. For example, if there are three pods, the service will distribute the traffic among them.
+  
+- **Stable Endpoints**: Instead of accessing individual pod IPs, users or other applications access the service, which internally routes the traffic to the appropriate pods.
+
+### Example
+
+Assume you have a deployment with three pods having IPs `172.16.3.4`, `172.16.3.5`, and `172.16.3.6`. You create a service that abstracts these pods. Users or applications interact with the service instead of the individual pod IPs.
+
+- **Users/Applications**: Instead of accessing `172.16.3.4`, `172.16.3.5`, or `172.16.3.6`, they access the service endpoint.
+- **Service**: The service routes the request to one of the pods based on the load balancing policy.
+
+### Kubernetes Service: Exposing Applications to the External World
+One of the significant features of Kubernetes services is their ability to expose applications to the external world. Apart from service discovery and load balancing, services in Kubernetes can make your applications accessible to external users.
+
+In Kubernetes, whenever you create a deployment, the pods receive an internal IP address, such as 172.16.3.4. While this internal IP allows for communication within the cluster, it doesn't suffice for external access. For instance, users cannot be expected to SSH into the Kubernetes cluster to access applications. Instead, they should be able to access the application via a simple URL, similar to how you access Google at `https://google.com` without needing SSH.
+
+Kubernetes services provide three primary types for exposing applications: ClusterIP, NodePort, and LoadBalancer.
+
+1. **ClusterIP**: This is the default service type in Kubernetes. It exposes the service on an internal IP within the cluster, making it accessible only from within the cluster. This type is ideal for internal applications where external access is not required. For example, if you configure a service with a ClusterIP, only components within the Kubernetes cluster can access the service, benefiting from the load balancing and service discovery features provided by Kubernetes.
+
+2. **NodePort**: This service type exposes the service on a static port on each node's IP address. It allows access to the service from outside the cluster but only within the organization’s network. Users who have access to the node’s IP addresses can reach the service. This type is useful for scenarios where the application needs to be accessible within a secure network but not directly on the internet.
+
+3. **LoadBalancer**: This service type is used to expose the service to the internet. It provisions a load balancer provided by the cloud provider (like AWS’s Elastic Load Balancer) and assigns a public IP address. This type is suitable for applications that need to be accessible globally. When you create a LoadBalancer service, Kubernetes communicates with the cloud provider to set up the external load balancer, which forwards traffic to the service.
+<img src="">
+
+Understanding the different service types is crucial for configuring how your applications are accessed. If you need the application to be globally accessible, the LoadBalancer service type is appropriate. For internal applications, ClusterIP or NodePort can be used based on the required access scope.
+
+### Example
+When you create a deployment in Kubernetes, the pods receive an internal IP address like 172.16.3.4. This IP address is only accessible within the cluster. To expose the application to the external world, you need to create a Kubernetes service. When you create a service of type **ClusterIP**, the service will only be accessible within the Kubernetes cluster. If you create a service of type **NodePort**, the service will be accessible within your organization’s network, allowing users who have access to the node’s IP addresses to reach the service. If you create a service of type **LoadBalancer**, the service will be accessible to the internet, with a public IP address assigned by the cloud provider. This public IP address allows users from anywhere in the world to access the application.
+
 ## Interview Questions
 
 - **What is the difference between a container, pod, and deployment?**
 - **What is the difference between a deployment and a replica set?**
-
-
-
-
 
