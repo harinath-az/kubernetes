@@ -699,6 +699,69 @@ Understanding the different service types is crucial for configuring how your ap
 ### Example
 When you create a deployment in Kubernetes, the pods receive an internal IP address like 172.16.3.4. This IP address is only accessible within the cluster. To expose the application to the external world, you need to create a Kubernetes service. When you create a service of type **ClusterIP**, the service will only be accessible within the Kubernetes cluster. If you create a service of type **NodePort**, the service will be accessible within your organization’s network, allowing users who have access to the node’s IP addresses to reach the service. If you create a service of type **LoadBalancer**, the service will be accessible to the internet, with a public IP address assigned by the cloud provider. This public IP address allows users from anywhere in the world to access the application.
 
+
+# Kubernetes Ingress and Ingress Controller
+
+## Introduction
+
+Before 2015, there was no concept of Ingress, people were using Kubernetes services and that is when they encountered problems, the two main problems Faced by them were **Lack of Enterprise &TLS based Load balancing and Load balancer mode problem** . The customers kept on complaining on Kubernetes GitHub page that when we were on Virtual machines we were enjoying all the good capabilities of load balancers. Okay and because of which our applications were very secure because of which you know we had reduced cost but once we moved to Kubernetes we realized that this is a very big problem. So Kubernetes people have also agreed to it and what people at Kubernetes said is okay we will implement something called **Ingress**.
+
+## Virtual Machines vs. Kubernetes
+The people when they used to use VMs or physical servers employed by enterprise load balancers like Nginx, F5, and others, offering advanced features such as:
+
+**Ratio-based load balancing
+Sticky sessions
+Path-based load balancing
+Host/domain-based load balancing
+Whitelisting and blacklisting
+TLS-based load balancing (secure HTTPS)**
+
+But the kubernetes used to provide simple load balancing, as they were getting more features with the Legacy approach, they were not happy and the other reason being the cloud provider used to charge for each static IP that was created and Huge applications will have 1000's of services, these services when using Load balancer mode would cost the organizations so much more money when compared to the Virtual Machines, where people used to create a Load balancer irrespective of the number of applications, they used to configure load balancer telling, if the request is coming to amazon.com/abc then send request to app1 and if it is coming to amazon.com/xyz send it to app2 and They used to expose this single load balancer using Static IP.
+
+So kubernetes came up with a solution of creating Ingress, saying we will allow the users of Kubernetes to create a resource called Ingress and since it is not practically possible to do the implementatio for each and every loadbalancer kind, kubernetes told the loadbalancer providers like NGINX, F5 to create something called as **Ingress controller**. Kubernetes told it will tell its users to create something called as an Ingress resource.Now what is this Ingress controller? Okay so on a high level if you are creating Ingress resource on your Kubernetes cluster and if you are saying that I need a path-based routing for example. Okay so you realize that you are missing the path-based routing on Kubernetes which you are very heavily using on your Virtual machines. So you can come to your Kubernetes cluster create an Ingress resource. I want to create path-based routing so you can use Kubernetes to create a YAML file and inside the YAML file say that you know I want path-based routing. So you said the same thing but who will implement this? Okay so who will decide that which load balancer you want to use. So there are hundreds of load balancers in the market so what Kubernetes said is okay we cannot support all of you, you know we cannot create the logic for all of you in the Kubernetes master or the API server. Instead kubernetes asked the load balancer providers like Nginx, F5 people to create something called as Ingress controller. So let's say that you want to create this specific capability using NGINX load balancer so the NGINX company will write a NGINX Ingress controller and as Kubernetes users on this Kubernetes cluster you will deploy the Ingress controller. Okay you can deploy that using Helm charts you can deploy that using YAML manifest. Once you deploy the developer or again the DevOps engineers they will create the Ingress YAML service YAML resource for their Kubernetes services. Okay so this Ingress controller will watch for the Ingress resource and it will provide you the path-based routing.
+
+For example let's say you are creating a pod in your kubernetes cluster.you are writing a YAML manifest for this and you have created a pod now what will happen like I told you there is a component called kubelet. This kubelet will deploy your pod onto one of the worker nodes so kubelet will also sit on the worker node and API server will notify kubelet using scheduler that okay a pod is created and kubelet will deploy the pod.Right and similarly let's say you are creating a service YAML manifest. Okay so there is kube-proxy and this kube-proxy will what it will do this kube-proxy will update the IP table rules so for every resource that you are creating in Kubernetes there is a component which is watching for that resource and it is performing the required action. Okay so similarly even if you are creating Ingress in Kubernetes let's say you are creating Ingress.**There has to be a resource or component or a controller which has to watch for this Ingress. Right so this was the problem so Kubernetes said that okay I can create Ingress resource but if I have to implement logic for all the load balancers that are available in the market that is NGINX, F5, Traefik, Ambassador, HAProxy.Kubernetes said that okay it is technically impossible I cannot do it so what I'll do is I'll come up with the architecture and the architecture is user will create Ingress resource.and load balancing companies like NGINX, F5 or any other load balancing companies they will write their own Ingress controllers and they will place these Ingress controllers on GitHub and they will provide the steps on how to install these Ingress controllers using Helm charts or any other ways and as a user instead of just creating Ingress resource you also have to deploy Ingress controller. Okay so it is up to the organization to choose which Ingress controller they want to use what is Ingress control at the end of the day it is just a load balancer. Right sometimes it can be a load balancer plus API Gateway as well API Gateway offers you some additional capabilities.**
+<img src="">
+
+Okay so end of the day what you need to do as a user is on your Kubernetes cluster the prerequisite is deploy an Ingress controller. Which Ingress controller you will deploy let's say in your Virtual machines world before you move to Kubernetes if you are using NGINX so you will go to NGINX GitHub page and you will deploy the NGINX Ingress controller onto the Kubernetes cluster. After that you will create Ingress resource depending upon the capabilities that you need. Okay if you need path-based routing you will create one type of Ingress, if you need TLS-based Ingress you will create one type of Ingress, if you need host-based you will create one type of Ingress so this is one-time activity. The one-time activity for the DevOps engineers is to decide which Ingress controller they want, what is Ingress controller to decide which load balancer they want. Okay it can be NGINX it can be F5 and they will go to their organizational GitHub page they will find the steps on how to deploy this and once they realize how to deploy they will after that it can be one service, two service, 100 services they will only write the Ingress resource once they write the Ingress resource. Like you know Ingress does not have to be one-to-one mapping. Okay you can create one Ingress and you know you can handle 100 services as well using paths. You can say if path is A go to service one, if path is B go to service two I'll show you that don't worry about it but you understood the topic here right what was the problem why Ingress was introduced what is Ingress controller you understood all of these things so once you understand this concept it is very easy for you.
+
+### Ingress Resource and Ingress Controller
+
+#### Ingress Resource
+**Definition:** An Ingress resource is a set of rules that define how external HTTP/HTTPS traffic should be routed to services within your Kubernetes cluster.
+Content: It includes specifications like:
+Host-based routing: Directing traffic based on the requested hostname.
+Path-based routing: Directing traffic based on URL paths.
+TLS/SSL: Handling secure connections.
+
+# Ingress Controller 
+
+## Definition
+An **Ingress Controller** is a specialized controller in Kubernetes that implements the rules defined in Ingress resources.
+
+## Function
+The Ingress Controller watches for changes to Ingress resources and configures the underlying proxy/load balancer to enforce the rules.
+
+## How They Work Together
+
+### 1. Create an Ingress Resource
+- You define an Ingress resource with the desired routing rules.
+- This resource is submitted to the Kubernetes API.
+
+### 2. Ingress Controller Watches Ingress Resources
+- The Ingress Controller continuously monitors the Kubernetes API for any new or updated Ingress resources.
+
+### 3. Ingress Controller Configures Proxy
+- When it detects a new or updated Ingress resource, the Ingress Controller translates the rules into configurations for the underlying proxy (e.g., NGINX, HAProxy, Traefik).
+- It updates the proxy configuration to handle routing as specified in the Ingress resource.
+
+### 4. Traffic Routing
+- Incoming traffic to the Kubernetes cluster hits the proxy/load balancer managed by the Ingress Controller.
+- The proxy uses the configured rules to route traffic to the appropriate service within the cluster.
+
+
+
+
 ## Interview Questions
 
 - **What is the difference between a container, pod, and deployment?**
