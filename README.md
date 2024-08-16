@@ -759,6 +759,54 @@ The Ingress Controller watches for changes to Ingress resources and configures t
 - Incoming traffic to the Kubernetes cluster hits the proxy/load balancer managed by the Ingress Controller.
 - The proxy uses the configured rules to route traffic to the appropriate service within the cluster.
 
+## What is Kubernetes RBAC and Why is it Important?
+
+What is Kubernetes RBAC, and why is it important? I would say that Kubernetes RBAC is a very simple but complicated topic. Now, you might wonder, what is simple, and if it’s simple, why is it complicated? Kubernetes RBAC is a very simple topic to understand, but if it is not implemented correctly, it becomes very complicated to debug the issues. It can also become very complicated for your organization because Kubernetes RBAC is directly related to security. When something is related to security, it means it is very important. Therefore, you need to understand the concept of RBAC more than just understanding how to create a service account, a role, or a role binding, because that part takes very little time.
+
+If you want to understand how to create a role, a service account, and a role binding, you can get it done in 10 minutes. You can create a pod, attach its service account, and understand the basics, but I'm not going to talk about those things. Instead, I will first explain the concept of RBAC, how and why it is very important, and then I will discuss what a service account is, what a role is, and what role binding is.
+
+### Understanding Kubernetes RBAC
+
+Kubernetes RBAC can be broadly divided into two parts. The first part is users, and the second part is service accounts or how services manage access in Kubernetes. This could be any application running in Kubernetes. First, let’s try to understand user management. If you have a Kubernetes cluster, for example, if you are using Kubernetes in Minikube, or in Kind, or any other Kubernetes platform, out of the box, you get administrative access to these clusters. This is because they are your local Kubernetes clusters, and you have been using them to learn Kubernetes. However, when you try to use Kubernetes in organizations, the very first thing you would do is define access. 
+
+For example, if there is a development team and a QE team, how do you define what access developers should have on this cluster and what access QE engineers should have? It’s not that any QE engineer can come to this Kubernetes cluster and delete resources in, let’s say, the kube-system namespace, something related to etcd. These things can become very problematic. If someone comes and deletes something related to etcd, it becomes very difficult for your administrator or DevOps team to restore the original state of these things. The way to solve this problem is by defining RBAC, which stands for Role-Based Access Control.
+
+What is Role-Based Access Control? Depending on the role of the person, you define access, hence the term role-based access, and this is the control that you are implementing. This is one part of RBAC: **managing user access ** in your Kubernetes cluster. The **second part** is managing the **access of the services or applications** that are running in the cluster. For instance, let’s say you have created a pod through a deployment or through any other method. Now, what access should this pod have on the Kubernetes cluster? Should the pod have access to config maps? Should it have access to secrets?
+
+Let’s say, as part of your application, you want to read config maps, or you want to read secrets. Or what if, as part of your application, a malicious pod starts deleting important files related to the API server? How do you restrict this? Similar to user management, you can also manage the access for services or applications running on the cluster using RBAC. So, the two primary responsibilities of RBAC are user management and managing the access of services running on the cluster.
+
+#### Textbook definition
+Kubernetes RBAC is a security mechanism that helps control access to the Kubernetes cluster. It allows you to manage who can do what in a Kubernetes cluster by defining roles and assigning them to users, groups, or service accounts.
+
+At a broad level, in Kubernetes, there are three major components for managing RBAC. The first is **service accounts or users**. The second is **Kubernetes roles or cluster roles**. The third is **role binding or cluster role binding**. 
+
+But how do you create users in Kubernetes? Earlier, I mentioned that there are two essential things: users and service accounts. But how do you create users? For example, if you are using Minikube, can you create a user? On my personal Linux laptop, I can use a command like `useradd`, and using `useradd`, I can create a user on my Linux system and share this access. I can create a user called "developer," and anyone with the username and password can log into this Linux box and perform specific actions. But how do you do this on Kubernetes? In Kubernetes, you cannot use this command to create users. **Kubernetes does not handle user management**. Instead, Kubernetes offloads user management to identity providers.
+
+This is very important to understand. While service accounts are something you can create on any Kubernetes cluster, even on your Minikube cluster, user management is offloaded to identity providers. This is crucial because, when working in an organization, whether they are using EKS, AKS, or OpenShift, user management is handled by identity providers. For instance, if your organization has a DevOps team with 10 users, you might want to create 10 users for the DevOps team and 10 accounts for developers, ensuring each has only the relevant access. Developers shouldn’t be able to delete resources, and QE people should only read resources and logs. DevOps engineers might handle cluster administration. 
+
+To achieve this, Kubernetes says, **“I’m not going to manage the users; I will offload the user management to identity providers.”** For example, these days, if you use any application, you might notice options like "Login with Instagram" or "Login with Google." You don’t even need to create an account with these applications. This is similar to what Kubernetes does. Kubernetes offloads user management. In Kubernetes, there is a component called the API server, and you can pass certain flags to the API server.
+
+Kubernetes allows you to offload user management to any identity provider. For example, if you are using Kubernetes on AWS, specifically EKS, you can use IAM users. That’s what Kubernetes suggests: use IAM users, and with them, you can log into Kubernetes. In between, you create something called an IAM provider or IAM OAuth provider, and using this, people can log into the Kubernetes cluster. If users are already created in IAM with their respective groups, they log in with the same username and group in Kubernetes. 
+
+This concept applies regardless of whether you’re using OpenShift, EKS, or AKS. Depending on the identity provider your organization uses, the specifics might change. Your organization might be using LDAP, Okta, or any SSO (Single Sign-On). Kubernetes natively supports all of these, but it’s up to you to configure the identity provider and manage users within it. You can also use identity brokers like Keycloak, which is a very popular choice for managing Kubernetes identity.
+
+### Service accounts:
+
+A **Service Account** in Kubernetes is essentially a YAML file that you can create to allow applications to interact with the Kubernetes API. It is similar to creating a pod, where you define the necessary attributes like API version, kind, and name in the YAML file. Even if you don't explicitly create a service account, Kubernetes will automatically generate a default service account that is used by pods to interact with the API server.
+
+### Default vs. Custom Service Accounts
+
+Let’s say you logged in as a user or your application is currently running as a service account. By default, even if you are creating a pod, you might have this question: all these days I’ve been using some pod, and by default, whenever you are running a pod, it comes with a **default service account**. Even if you are not creating a service account, Kubernetes creates one automatically, and this service account is what Kubernetes pods use. Whatever applications you are running will use this service account to communicate with the API server or, for that matter, to connect with any resources in Kubernetes. If you don’t create a service account, Kubernetes will create a default one and attach it to your pod. If you create a service account, you can use your custom service account. But what happens after that? Whether you are logged into your Kubernetes cluster as a user or your application is running on a Kubernetes cluster as a service account, that’s fine. But after that, how do you manage the roles or configurations? To define access after this point, Kubernetes supports two important resources: **role and role binding**. 
+
+### Role and Role Binding
+
+You can also consider cluster role when it has cluster-level permissions and cluster role binding when it has cluster-level permissions. Simply understand that Kubernetes manages all of these through role and role binding. Now, what is role and role binding? Once your application is running as a service account or you’ve logged in as a user, the next step is to grant access to it. First, you create a role. Let’s say you create a role that grants developers access to pods, config maps, and secrets within the same namespace. To have access within a single namespace, you create a role. If they need access across the cluster, you create a cluster role. After creating this **role**, you need to attach it to users. To do this, you use **role binding**. 
+
+A role is a YAML file where you define all the permissions—like access to config maps, secrets, and other resources. For example, if you attach this role to a user named Abhi, Abhi will have all the permissions defined in the role.yaml file. Similarly, if you attach the role to another person, they will have the same access. You can compare this to IAM policies. Once you’ve created a role and a user, how do you attach them? You use role binding. 
+
+The ecosystem looks like this: service account (or user), role, and role binding. You create a service account or user, and then you create a role. Using role binding, you bind them together. Without role binding, you can create a service account and a role, but they won’t be connected. The role binding is essential to bind the permissions to users. So, this is the basic concept of Kubernetes RBAC. If you create a role within a specific namespace, it’s called a role. If it’s within the cluster scope, it’s called a cluster role. The same applies to role binding. 
+<img src=" " >
+
 
 
 
@@ -766,4 +814,3 @@ The Ingress Controller watches for changes to Ingress resources and configures t
 
 - **What is the difference between a container, pod, and deployment?**
 - **What is the difference between a deployment and a replica set?**
-
